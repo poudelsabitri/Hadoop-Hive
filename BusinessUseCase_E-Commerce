@@ -1,0 +1,88 @@
+Problem Statement
+An e-commerce company processes massive amounts of sales data from customers across different regions and countries. The data is queried frequently for analytics purposes, such as:
+1. Daily Sales Reports by country and region.
+2. Product Sales Trends to identify the top-selling products in specific regions.
+3. Customer Purchase Patterns for customer segmentation and targeted marketing.
+
+The dataset is large (millions of records), and querying it without optimization leads to slow performance. The company wants to:
+- Optimize queries for specific date ranges (daily sales reports).
+- Speed up queries for product categories.
+- Use partitioning and bucketing to manage this large dataset efficiently in Hive.
+Sample Data
+Sales Table (sales_data)
+Columns:
+- sale_id: INT
+- product_id: INT
+- product_category: STRING
+- customer_id: INT
+- sale_amount: FLOAT
+- sale_date: DATE
+- country: STRING
+- region: STRING
+
+Sample Data:
+1, 101, Electronics, 2001, 500.00, 2023-08-01, US, North America
+2, 102, Electronics, 2002, 300.00, 2023-08-01, US, North America
+3, 103, Furniture, 2003, 700.00, 2023-08-02, UK, Europe
+4, 104, Furniture, 2004, 800.00, 2023-08-03, UK, Europe
+5, 105, Clothing, 2005, 200.00, 2023-08-03, IN, Asia
+6, 106, Clothing, 2006, 600.00, 2023-08-03, IN, Asia
+
+
+Solution-->
+. Daily Sales by Country
+To query daily sales for a specific country (e.g., USA) for a particular date:
+SELECT SUM(sale_amount) AS total_sales
+FROM sales_data
+WHERE sale_date = '2023-08-01' AND country = 'US';
+b. Top Products by Category in a Region
+To find the top-selling products in a specific product category in a particular region:
+SELECT product_id, SUM(sale_amount) AS total_sales
+FROM sales_data
+WHERE product_category = 'Electronics' AND region = 'North America'
+GROUP BY product_id
+ORDER BY total_sales DESC
+LIMIT 10;
+c. Customer Purchase Trends
+To analyze purchase trends for a specific customer, say customer_id = 12345, across different product categories:
+SELECT product_category, SUM(sale_amount) AS total_spent
+FROM sales_data
+WHERE customer_id = 12345
+GROUP BY product_category
+ORDER BY total_spent DESC;
+
+
+Description-->
+Solution: Using Partitioning and Bucketing in Hive
+1. Partitioning
+Partition the table based on sale_date and country. This makes it easier to run queries like daily sales reports or sales filtered by country. Partitioning reduces the amount of data scanned when querying specific partitions.
+•	- Partition on: sale_date, country
+2. Bucketing
+Use bucketing on product_category and customer_id. Bucketing divides data within partitions into smaller manageable files, which helps in efficiently querying specific product categories or customers.
+•	- Bucket on: product_category, customer_id
+3. Create Table with Partitioning and Bucketing
+Hive Query to create the table with partitioning and bucketing:
+CREATE TABLE sales_data (
+    sale_id INT,
+    product_id INT,
+    product_category STRING,
+    customer_id INT,
+    sale_amount FLOAT,
+    region STRING
+)
+PARTITIONED BY (sale_date STRING, country STRING)
+CLUSTERED BY (product_category, customer_id) INTO 10 BUCKETS
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS ORC;
+4. Load Data into Partitioned and Bucketed Table
+When loading data, specify the partition values:
+LOAD DATA INPATH '/path/to/data/sales_2023-08-01_US.csv'
+INTO TABLE sales_data
+PARTITION (sale_date='2023-08-01', country='US');
+. Advantages of Partitioning and Bucketing
+- **Partitioning**: Limits the amount of data scanned, especially for time-based or country-based queries, speeding up reports like daily sales.
+- **Bucketing**: Divides large datasets into smaller, manageable chunks (buckets), improving performance when querying by product category or customer ID. This is ideal for targeted queries such as customer behavior analysis or product category trends.
+Conclusion
+Partitioning and bucketing in Hive improve query performance by reducing the amount of data scanned and optimizing data storage. In this e-commerce use case, partitioning by sale_date and country helps generate fast sales reports, while bucketing by product_category and customer_id speeds up targeted queries, such as top-selling products and customer segmentation.
+
